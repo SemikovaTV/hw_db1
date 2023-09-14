@@ -64,9 +64,71 @@ networks:
 Приведите:
 
 - итоговый список БД после выполнения пунктов выше;
+```bash
+test_db-# \l
+                                       List of databases
+          Name          |  Owner   | Encoding |  Collate   |   Ctype    |   Access privileges
+------------------------+----------+----------+------------+------------+-----------------------
+ postgres               | postgres | UTF8     | en_US.utf8 | en_US.utf8 |
+ semikovatv-netology-db | postgres | UTF8     | en_US.utf8 | en_US.utf8 |
+ template0              | postgres | UTF8     | en_US.utf8 | en_US.utf8 | =c/postgres          +
+                        |          |          |            |            | postgres=CTc/postgres
+ template1              | postgres | UTF8     | en_US.utf8 | en_US.utf8 | =c/postgres          +
+                        |          |          |            |            | postgres=CTc/postgres
+ test_db                | postgres | UTF8     | en_US.utf8 | en_US.utf8 | =Tc/postgres         +
+                        |          |          |            |            | postgres=CTc/postgres
+(5 rows)
+```  
 - описание таблиц (describe);
+```bash
+test_db-# \d orders
+                            Table "public.orders"
+ Column |  Type   | Collation | Nullable |              Default
+--------+---------+-----------+----------+------------------------------------
+ id     | integer |           | not null | nextval('orders_id_seq'::regclass)
+ name   | text    |           |          |
+ price  | integer |           |          |
+Indexes:
+    "orders_pkey" PRIMARY KEY, btree (id)
+Referenced by:
+    TABLE "clients" CONSTRAINT "clients_zakaz_fkey" FOREIGN KEY (zakaz) REFERENCES orders(id)
+
+test_db-# \d clients
+                                     Table "public.clients"
+  Column   |         Type          | Collation | Nullable |               Default
+-----------+-----------------------+-----------+----------+-------------------------------------
+ id        | integer               |           | not null | nextval('clients_id_seq'::regclass)
+ last_name | character varying(30) |           |          |
+ country   | character varying(30) |           |          |
+ zakaz     | integer               |           |          |
+Indexes:
+    "clients_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "clients_zakaz_fkey" FOREIGN KEY (zakaz) REFERENCES orders(id)
+```
 - SQL-запрос для выдачи списка пользователей с правами над таблицами test_db;
 - список пользователей с правами над таблицами test_db.
+```bash
+test_db-# \du
+                                       List of roles
+    Role name     |                         Attributes                         | Member of
+------------------+------------------------------------------------------------+-----------
+ postgres         | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
+ test-admin-user  | Superuser, No inheritance                                  | {}
+ test-simple-user | No inheritance                                             | {}
+
+test_db=# \z
+                                          Access privileges
+ Schema |      Name      |   Type   |        Access privileges         | Column privileges | Policies
+--------+----------------+----------+----------------------------------+-------------------+----------
+ public | clients        | table    | postgres=arwdDxt/postgres       +|                   |
+        |                |          | "test-simple-user"=arwd/postgres |                   |
+ public | clients_id_seq | sequence |                                  |                   |
+ public | orders         | table    | postgres=arwdDxt/postgres       +|                   |
+        |                |          | "test-simple-user"=arwd/postgres |                   |
+ public | orders_id_seq  | sequence |                                  |                   |
+(4 rows)
+```
 
 ## Задача 3
 
@@ -82,6 +144,10 @@ networks:
 |Монитор| 7000|
 |Гитара| 4000|
 
+```bash
+test_db=# insert into orders(id, name, price) VALUES (1, 'Chocolate', 10), (2, 'Принтер',0), (3, 'Книга', 500), (4, 'Монитор', 7000), (5, 'Гитара', 4000);
+INSERT 0 5
+```
 Таблица clients
 
 |ФИО|Страна проживания|
@@ -92,13 +158,29 @@ networks:
 |Ронни Джеймс Дио| Russia|
 |Ritchie Blackmore| Russia|
 
+```bash
+test_db=# insert into clients(id, last_name, country) VALUES (1, 'Иванов Иван Иванович','США'), (2, 'Петров Петр Петрович', 'Канада'), (3, 'Иоган Себастьян Бах', 'Япония'), (4, 'Ронни Джеймс Дио', 'Россия'), (5, 'Ritchie Blackmore', 'Россия');
+```
+
 Используя SQL-синтаксис:
 - вычислите количество записей для каждой таблицы.
 
 Приведите в ответе:
-
     - запросы,
     - результаты их выполнения.
+```bash
+test_db=# select count (*) from orders;
+ count
+-------
+     5
+(1 row)
+
+test_db=# select count (*) from clients;
+ count
+-------
+     5
+(1 row)
+```
 
 ## Задача 4
 
@@ -113,8 +195,24 @@ networks:
 |Иоганн Себастьян Бах| Гитара |
 
 Приведите SQL-запросы для выполнения этих операций.
-
+```bash
+test_db=# update  clients set zakaz = 3 where id = 1;
+UPDATE 1
+test_db=# update  clients set zakaz = 4 where id = 2;
+UPDATE 1
+test_db=# update  clients set zakaz = 5 where id = 3;
+UPDATE 1
+```
 Приведите SQL-запрос для выдачи всех пользователей, которые совершили заказ, а также вывод этого запроса.
+```bash
+test_db=# select c.last_name, o.name from clients c, orders o where c.zakaz = o.id;
+      last_name       |  name
+----------------------+---------
+ Иванов Иван Иванович | Книга
+ Петров Петр Петрович | Монитор
+ Иоган Себастьян Бах  | Гитара
+(3 rows)
+```
  
 Подсказка: используйте директиву `UPDATE`.
 
@@ -122,8 +220,24 @@ networks:
 
 Получите полную информацию по выполнению запроса выдачи всех пользователей из задачи 4 
 (используя директиву EXPLAIN).
-
 Приведите получившийся результат и объясните, что значат полученные значения.
+
+```bash
+test_db=# explain select c.last_name, o.name from clients c, orders o where c.zakaz = o.id;
+                               QUERY PLAN
+-------------------------------------------------------------------------
+ Hash Join  (cost=37.00..52.30 rows=420 width=110)
+   Hash Cond: (c.zakaz = o.id)
+   ->  Seq Scan on clients c  (cost=0.00..14.20 rows=420 width=82)
+   ->  Hash  (cost=22.00..22.00 rows=1200 width=36)
+         ->  Seq Scan on orders o  (cost=0.00..22.00 rows=1200 width=36)
+(5 rows)
+```
+Hash join — это алгоритм объединения двух таблиц в базе данных. Он использует функцию хеширования для связывания строк из двух таблиц на основе общего ключа. В процессе хеш-соединения сначала создается хеш-таблица для одной из таблиц, которая используется для быстрого поиска соответствующей строки в другой таблице. Если в хеш-таблице уже есть значение ключа, то соответствующая строка добавляется в результат.
+Hash Cond - Показывает нам какие столбцы наших таблиц связываются для вывода.
+Seq Scan on clients - последовательное сканирование таблицы "клиенты".
+Seq Scan on orders - последовательное сканирование таблицы "заказы".
+На этом этапе происходит определение строк, столбцов и их длины, а также помещение результатов в кэш.
 
 ## Задача 6
 
