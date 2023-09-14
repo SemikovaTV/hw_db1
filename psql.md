@@ -242,21 +242,113 @@ Seq Scan on orders - последовательное сканирование �
 ## Задача 6
 
 Создайте бэкап БД test_db и поместите его в volume, предназначенный для бэкапов (см. задачу 1).
-
+```bash
+postgres@adabce3974c5:~$ pg_dump test_db > /var/lib/vol1/test.dump
+postgres@adabce3974c5:~$ ls -la /var/lib/vol1
+total 16
+drwxrwxrwx 2 root     root     4096 Sep 14 13:46 .
+drwxr-xr-x 1 root     root     4096 Sep 13 16:16 ..
+-rw-r--r-- 1 postgres postgres 4089 Sep 14 13:46 test.dump
+```
 Остановите контейнер с PostgreSQL, но не удаляйте volumes.
-
+```bash
+root@debian:/var/lib# docker stop adabce3974c5
+adabce3974c5
+root@debian:/usr/local/bin/vol1# ls
+test.dump
+```
 Поднимите новый пустой контейнер с PostgreSQL.
+```bash
+version: "3.3"
+services:
+   test-db1:
+    image: postgres:12
+    container_name: test
+    ports:
+     - 5432:5432
+    volumes:
+      - ./pg_data:/home
+      - ./vol1:/var/lib/vol1
+      - ./vol2:/var/lib/vol2
+    environment:
+      POSTGRES_PASSWORD: stv12!3!!
+      POSTGRES_DB: semikovatv-netology-db
+      PGDATA: /var/lib/postgresql/data/pgdata
 
+    networks:
+      semikovatv-hw:
+        ipv4_address: 172.1.0.107
+    restart: always
+
+networks:
+  semikovatv-hw:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 172.1.0.0/24
+```
+```bash
+root@debian:~# docker container ls
+CONTAINER ID   IMAGE         COMMAND                  CREATED         STATUS         PORTS                                       NAMES
+0bdd3cf1aa14   postgres:12   "docker-entrypoint.s…"   7 minutes ago   Up 2 minutes   0.0.0.0:5432->5432/tcp, :::5432->5432/tcp   test
+root@debian:~# docker exec -it 0bdd3cf1aa14 bash
+
+```
 Восстановите БД test_db в новом контейнере.
+```bash
+root@ec6906f2f5a6:/# su - postgres
+postgres@ec6906f2f5a6:~$ psql
+psql (12.16 (Debian 12.16-1.pgdg120+1))
+Type "help" for help.
 
-Приведите список операций, который вы применяли для бэкапа данных и восстановления. 
+postgres=# CREATE DATABASE test_db;
+CREATE DATABASE
+postgres=#
+\q
+postgres@ec6906f2f5a6:~$ psql test_db < /var/lib/vol1/test.sql
+SET
+SET
+SET
+SET
+SET
+ set_config
+------------
 
----
+(1 row)
 
-### Как cдавать задание
+SET
+SET
+SET
+SET
+SET
+SET
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER TABLE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER TABLE
+ALTER SEQUENCE
+ALTER TABLE
+ALTER TABLE
+COPY 5
+COPY 5
+ setval
+--------
+      1
+(1 row)
 
-Выполненное домашнее задание пришлите ссылкой на .md-файл в вашем репозитории.
+ setval
+--------
+      1
+(1 row)
 
----
-
-
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ERROR:  role "test-simple-user" does not exist
+ERROR:  role "test-simple-user" does not exist
+```
