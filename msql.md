@@ -138,13 +138,62 @@ mysql> SELECT * FROM information_schema.user_attributes WHERE USER = 'test';
 ## Задача 3
 
 Установите профилирование `SET profiling = 1`.
-Изучите вывод профилирования команд `SHOW PROFILES;`.
-
+Изучите вывод профилирования команд `SHOW PROFILES;
+```sql
+mysql> SET profiling = 1;
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+mysql> SHOW PROFILES;
++----------+------------+----------------------------------------+
+| Query_ID | Duration   | Query                                  |
++----------+------------+----------------------------------------+
+|        1 | 0.00090575 | SELECT * FROM orders WHERE price > 100 |
+|        2 | 0.00531000 | SELECT * FROM orders WHERE price > 200 |
+|        3 | 0.00052200 | SELECT * FROM orders WHERE price > 300 |
++----------+------------+----------------------------------------+
+3 rows in set, 1 warning (0.00 sec)
+```
 Исследуйте, какой `engine` используется в таблице БД `test_db` и **приведите в ответе**.
-
+```sql
+mysql> SELECT table_schema, table_name, engine FROM information_schema.tables WHERE table_name = 'orders';
++--------------+------------+--------+
+| TABLE_SCHEMA | TABLE_NAME | ENGINE |
++--------------+------------+--------+
+| test_db      | orders     | InnoDB |
++--------------+------------+--------+
+1 row in set (0.00 sec)
+```
 Измените `engine` и **приведите время выполнения и запрос на изменения из профайлера в ответе**:
 - на `MyISAM`,
 - на `InnoDB`.
+```sql
+mysql> ALTER TABLE orders ENGINE =MyISAM;
+Query OK, 5 rows affected (0.21 sec)
+Records: 5  Duplicates: 0  Warnings: 0
+
+mysql> SHOW PROFILES;
++----------+------------+----------------------------------------------------------------------------------------------------+
+| Query_ID | Duration   | Query                                                                                              |
++----------+------------+----------------------------------------------------------------------------------------------------+
+|        1 | 0.00090575 | SELECT * FROM orders WHERE price > 100                                                             |
+|        2 | 0.00531000 | SELECT * FROM orders WHERE price > 200                                                             |
+|        3 | 0.00052200 | SELECT * FROM orders WHERE price > 300                                                             |
+|        4 | 0.00849625 | SELECT table_schema, table_name, engine FROM information_schema.tables WHERE table_name = 'orders' |
+|        5 | 0.00013700 | ALTER TABLE orders ENGINE =MyIASM                                                                  |
+|        6 | 0.21078875 | ALTER TABLE orders ENGINE =MyISAM                                                                  |
+|        7 | 0.00056325 | SELECT * FROM orders WHERE price > 100                                                             |
+|        8 | 0.00035425 | SELECT * FROM orders WHERE price > 200                                                             |
+|        9 | 0.00153250 | SELECT * FROM orders WHERE price > 300                                                             |
++----------+------------+----------------------------------------------------------------------------------------------------+
+9 rows in set, 1 warning (0.00 sec)
+```
+- на `MyISAM`
+```sql
+7 | 0.00056325 | SELECT * FROM orders WHERE price > 100 
+```
+- на `InnoDB`
+```sql
+1 | 0.00090575 | SELECT * FROM orders WHERE price > 100
+ ```
 
 ## Задача 4 
 
@@ -159,12 +208,48 @@ mysql> SELECT * FROM information_schema.user_attributes WHERE USER = 'test';
 - размер файла логов операций 100 Мб.
 
 Приведите в ответе изменённый файл `my.cnf`.
+```bash
+bash-4.4# cat my.cnf
+# For advice on how to change settings please see
+# http://dev.mysql.com/doc/refman/8.0/en/server-configuration-defaults.html
 
----
+[mysqld]
+#
+# Remove leading # and set to the amount of RAM for the most important data
+# cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.
+# innodb_buffer_pool_size = 128M
+#
+# Remove leading # to turn on a very important data integrity option: logging
+# changes to the binary log between backups.
+# log_bin
+#
+# Remove leading # to set options mainly useful for reporting servers.
+# The server defaults are faster for transactions and fast SELECTs.
+# Adjust sizes as needed, experiment to find the optimal values.
+# join_buffer_size = 128M
+# sort_buffer_size = 2M
+# read_rnd_buffer_size = 2M
 
-### Как оформить ДЗ
+# Remove leading # to revert to previous value for default_authentication_plugin,
+# this will increase compatibility with older clients. For background, see:
+# https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_default_authentication_plugin
+# default-authentication-plugin=mysql_native_password
+skip-host-cache
+skip-name-resolve
+datadir=/var/lib/mysql
+socket=/var/run/mysqld/mysqld.sock
+secure-file-priv=/var/lib/mysql-files
+user=mysql
 
-Выполненное домашнее задание пришлите ссылкой на .md-файл в вашем репозитории.
+innodb_flush_log_at_trx_commit=0
+innodb_file_per_table=ON
+innodb_log_buffer_size=1M
+innodb_buffer_pool_size=700M
+innodb_log_file_size=100M
 
----
+pid-file=/var/run/mysqld/mysqld.pid
+[client]
+socket=/var/run/mysqld/mysqld.sock
 
+!includedir /etc/mysql/conf.d/
+```
